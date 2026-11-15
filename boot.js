@@ -7,8 +7,8 @@
 'use strict';
 var API = window.CID_API || '', ONLINE = !!API, V = window.CID_V || 1;
 var SKEY = 'nimex-cid-admin', SHARE_LOCAL = 'nimex_cid_share_v1';
-var SYNC = ['nimex_config_v1', 'nimex_vkind_v1', 'nimex_vtype_v1', 'nimex_waive_v1', 'nimex_fine_toggles_v1'];
-var SYNC_NAME = { nimex_config_v1: 'Config ค่าปรับราย DC', nimex_vkind_v1: 'ประเภทการปล่อยรถ', nimex_vtype_v1: 'ประเภทงาน', nimex_waive_v1: 'Waive', nimex_fine_toggles_v1: 'เปิด/ปิดค่าปรับ', results: 'ผลการ Check-in' };
+var SYNC = ['nimex_config_v1', 'nimex_vkind_v1', 'nimex_vtype_v1', 'nimex_waive_v1', 'nimex_fine_toggles_v1', 'nimex_dc_exclude_v1'];
+var SYNC_NAME = { nimex_config_v1: 'Config ค่าปรับราย DC', nimex_vkind_v1: 'ประเภทการปล่อยรถ', nimex_vtype_v1: 'ประเภทงาน', nimex_waive_v1: 'Waive', nimex_fine_toggles_v1: 'เปิด/ปิดค่าปรับ', nimex_dc_exclude_v1: 'DC ที่ยกเว้นทุกเงื่อนไข', results: 'ผลการ Check-in' };
 var RES = ['nimex_results_v1', 'nimex_meta_v1'];
 var COLS = ['dc','code','plate','vehicleType','vehicleKind','dateISO','configStart','checkinTime','diffMin','distanceKm','status','fine','waived','waivedFine','billDelivered','dropTotal','dropDelivered','billFailed'];
 var NULLABLE = { diffMin: 1, distanceKm: 1 }, ZERO = { fine: 1, waivedFine: 1, billDelivered: 1, dropTotal: 1, dropDelivered: 1, billFailed: 1 };

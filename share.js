@@ -77,7 +77,7 @@ function period() {
   for (t = utc(d0); t <= utc(d1); t += DAY) if (!sunday(t)) N++;
   var k = 0, p0 = null, p1_ = null;
   for (t = utc(d0) - DAY; k < N; t -= DAY) if (!sunday(t)) { if (!p1_) p1_ = isoOf(t); p0 = isoOf(t); k++; }
-  var prev = S.results.filter(function (r) { return r.dateISO >= p0 && r.dateISO <= p1_ && !isSunday(r.dateISO); });
+  var prev = (typeof visibleResults === 'function' ? visibleResults() : S.results).filter(function (r) { return r.dateISO >= p0 && r.dateISO <= p1_ && !isSunday(r.dateISO); });
   var pd = datesOf(prev).length;
   return { cur: cur, prev: prev.length ? prev : null, N: N, d0: d0, d1: d1, p0: p0, p1: p1_,
     curLabel: fmtTH(d0) + (d1 !== d0 ? ' – ' + fmtTH(d1) : '') + ' (' + N + ' วันทำการ)',

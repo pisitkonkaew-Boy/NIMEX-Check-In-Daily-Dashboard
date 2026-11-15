@@ -3,12 +3,12 @@
  *  Deploy > New deployment > Web app > Execute as: Me · Who has access: Anyone → คัดลอก URL /exec ใส่ใน config.js
  *  แท็บ Rows / Settings / Log สร้างให้อัตโนมัติ
  *  - Rows     : ผลการ Check-in รายคันรายวัน (คำนวณจากหน้าเว็บ สูตรเดิม) ทุกช่องเป็นข้อความ
- *  - Settings : ค่าตั้งที่ใช้ร่วมกัน (Config ค่าปรับราย DC, ประเภทรถ/งาน, Waive, เปิด/ปิดค่าปรับ, เกรด/อินโฟกราฟิก)
+ *  - Settings : ค่าตั้งที่ใช้ร่วมกัน (Config ค่าปรับราย DC, DC ที่ยกเว้นทุกเงื่อนไข, ประเภทรถ/งาน, Waive, เปิด/ปิดค่าปรับ, เกรด/อินโฟกราฟิก)
  *               ค่าที่ยาวจะแบ่งเป็นหลายแถว (part) เพราะเซลล์เก็บได้ไม่เกิน 50,000 ตัวอักษร
  *  - บันทึกข้อมูล: begin → append (หลายครั้ง) → finish  เขียนลงแท็บชั่วคราวก่อน แล้วสลับเป็น Rows ตอน finish
  *    ถ้าส่งไม่ครบ ข้อมูลเดิมใน Rows ยังอยู่ครบ */
 var COLS = ['dc','code','plate','vehicleType','vehicleKind','dateISO','configStart','checkinTime','diffMin','distanceKm','status','fine','waived','waivedFine','billDelivered','dropTotal','dropDelivered','billFailed'];
-var SET_KEYS = ['nimex_config_v1','nimex_vkind_v1','nimex_vtype_v1','nimex_waive_v1','nimex_fine_toggles_v1','share'];
+var SET_KEYS = ['nimex_config_v1','nimex_vkind_v1','nimex_vtype_v1','nimex_waive_v1','nimex_fine_toggles_v1','nimex_dc_exclude_v1','share'];
 var CK = 'cid-data', CHUNK = 90000, PART = 45000, TMP = 'Rows_upload';
 
 function ss_() { return SpreadsheetApp.getActiveSpreadsheet(); }
