@@ -656,7 +656,7 @@ body[data-theme="dark"] .cis-note{color:#a3b4d0}
               <div class="top10-scroll" id="exec-top10-late"></div>
             </div>
             <div class="exec-bottom-panel">
-              <h3><span class="panel-icon">🚫</span>Top 10 DC ไม่ Check in มากที่สุด</h3>
+              <h3><span class="panel-icon">📍</span>Top 10 DC Check in ไม่ตรงจุด มากที่สุด</h3>
               <div class="top10-scroll" id="exec-top10-absent"></div>
             </div>
             <div class="exec-bottom-panel">
@@ -1825,19 +1825,19 @@ function buildExec(){
       </div>
     </div>`;}).join(''):'<div style="color:var(--text3);font-size:12px;padding:16px">ไม่มีข้อมูล</div>';
 
-  // Top 10 ไม่ Check in — เรียงตาม % ไม่ Check in มากไปน้อย
-  const top10ab=dcArr.filter(m=>m.tot>0&&m.ab>0).sort((a,b)=>(b.ab/b.tot)-(a.ab/a.tot)).slice(0,10);
+  // Top 10 Check in ไม่ตรงจุด — เรียงตาม % ไม่ตรงจุด มากไปน้อย (ใช้กล่องเดิม id exec-top10-absent)
+  const top10ab=dcArr.filter(m=>m.tot>0&&m.wp>0).sort((a,b)=>(b.wp/b.tot)-(a.wp/a.tot)).slice(0,10);
   document.getElementById('exec-top10-absent').innerHTML=top10ab.length?top10ab.map((m,i)=>{
-    const pct=m.tot>0?(m.ab/m.tot*100):0;
+    const pct=m.tot>0?(m.wp/m.tot*100):0;
     return `<div class="top10-item" style="cursor:pointer" onclick="showDCDetail('${m.dc.replace(/'/g,"\\'")}')">
       <div class="top10-rank ${i<3?'rank-'+(i+1):'rank-other'}">${i+1}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:11px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${m.dc}</div>
-        <div class="top10-bar-wrap"><div class="top10-fill" style="width:${pct.toFixed(1)}%;background:var(--purple)"></div></div>
+        <div class="top10-bar-wrap"><div class="top10-fill" style="width:${pct.toFixed(1)}%;background:#2f8f8f"></div></div>
       </div>
       <div style="text-align:right;min-width:72px">
-        <div style="font-size:13px;font-weight:900;color:var(--purple)">${pct.toFixed(1)}%</div>
-        <div style="font-size:10px;color:var(--text2)">${m.ab.toLocaleString()} คัน</div>
+        <div style="font-size:13px;font-weight:900;color:#2f8f8f">${pct.toFixed(1)}%</div>
+        <div style="font-size:10px;color:var(--text2)">${m.wp.toLocaleString()} คัน</div>
       </div>
     </div>`;}).join(''):'<div style="color:var(--text3);font-size:12px;padding:16px">ไม่มีข้อมูล</div>';
 
