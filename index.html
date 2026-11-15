@@ -1974,7 +1974,7 @@ function buildMonthly(){
   const da=d.filter(r=>S.monthA&&r.dateISO.slice(0,7)===S.monthA);
   const db=S.monthB?d.filter(r=>r.dateISO.slice(0,7)===S.monthB):null;
   const ka=getKPIs(da),kb=db?getKPIs(db):null;
-  renderCompareKPIs('monthly-kpis',ka,kb,['สาย','ไม่ตรงจุด','ไม่ Check in']);
+  renderCompareKPIs('monthly-kpis',ka,kb,['มาสาย','ไม่ตรงจุด','ไม่ Check in','ค่าปรับ']);
   const dayMap={};
   for(const r of da){
     if(!dayMap[r.dateISO])dayMap[r.dateISO]={on:0,lt:0,wp:0,ab:0,fn:0,tot:0};
@@ -2021,7 +2021,7 @@ function renderWeekly(){
   const da=d.filter(r=>S.weekA&&getWeekKey(r.dateISO)===S.weekA);
   const db=S.weekB?d.filter(r=>getWeekKey(r.dateISO)===S.weekB):null;
   const ka=getKPIs(da),kb=db?getKPIs(db):null;
-  renderCompareKPIs('weekly-kpis',ka,kb,['สาย','ไม่ตรงจุด','ไม่ Check in']);
+  renderCompareKPIs('weekly-kpis',ka,kb,['มาสาย','ไม่ตรงจุด','ไม่ Check in','ค่าปรับ']);
   const dayMap={};
   for(const r of da){if(!dayMap[r.dateISO])dayMap[r.dateISO]={on:0,lt:0,wp:0,ab:0};
     if(r.status==='ตรงเวลา')dayMap[r.dateISO].on++;
@@ -3081,6 +3081,7 @@ function reprocessData(){
         } else {
           newStatus='ไม่ Check in';newFine=100; // ABSENT_FINE
         }
+        newFine=applyFineToggles(newStatus,newFine); // ยึดสวิตช์เปิด/ปิดค่าปรับในหน้าตั้งค่า (เหมือนตอนอัปโหลด)
         // Apply waive
         const wv=isWaived(r.dc,r.code,r.dateISO);
         if(r.status!==newStatus||(!r.waived&&r.fine!==newFine)){changed++;}
