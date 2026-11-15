@@ -437,6 +437,22 @@ body:not(.nx-admin) .data-badge{pointer-events:none}
 .cid-sync .ok{color:#123f8c;font-weight:600}
 .cid-sync button{font-family:Prompt,sans-serif;font-size:12px;font-weight:600;border:0;border-radius:999px;padding:6px 14px;background:#0a2a5e;color:#fff;cursor:pointer;min-height:32px}
 #cid-msg{font-size:12px;color:var(--text2);margin:-6px 0 10px 4px}
+.td-click{cursor:pointer}
+.td-click:hover{text-decoration:underline;text-underline-offset:3px;background:rgba(212,175,55,.14)}
+.team-total-row td{border-top:2px solid #d4af37;font-size:13px;padding-top:10px;padding-bottom:10px}
+.modal-box.modal-wide{min-width:min(1100px,94vw);max-width:96vw}
+.td-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.td-tools input{flex:1;min-width:200px;font-family:inherit;font-size:13px;padding:7px 12px;border:1px solid var(--border);border-radius:999px;background:var(--bg);color:var(--text)}
+.td-seg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden}
+.td-seg button{font-family:inherit;font-size:12px;border:0;padding:6px 12px;background:transparent;color:var(--text2);cursor:pointer;min-height:32px}
+.td-seg button.on{background:#0a2a5e;color:#fff}
+.td-wrap{max-height:52vh;overflow:auto;border:1px solid var(--border);border-radius:10px}
+.td-table{width:100%;border-collapse:collapse;font-size:12px}
+.td-table th{position:sticky;top:0;background:#0a2a5e;color:#fff;font-weight:600;text-align:left;padding:7px 8px;white-space:nowrap}
+.td-table td{padding:6px 8px;border-top:1px solid var(--border);white-space:nowrap}
+.td-table .r{text-align:right}
+.td-table tbody tr:nth-child(even) td{background:rgba(10,42,94,.03)}
+@media (max-width:640px){.modal-box.modal-wide{min-width:0;width:96vw;padding:16px}}
 .cfg-excluded td{opacity:.55}
 .cfg-excluded td:first-child{opacity:1}
 .dcx-badge{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#f9e7eb;color:#b8334a;font-size:10px;font-weight:600}
@@ -713,7 +729,7 @@ body[data-theme="dark"] .cis-note{color:#a3b4d0}
                 <th class="sortable" onclick="teamSort('bpct')" style="text-align:center">% ส่งสำเร็จ</th>
               </tr>
             </thead>
-            <tbody id="team-tbody"></tbody>
+            <tbody id="team-tbody" onclick="const c=event.target.closest('[data-m]');if(c){event.stopPropagation();showTeamDetail(c.closest('tr').dataset.dc,c.dataset.m);}"></tbody>
           </table>
         </div>
         <div class="pagination">
@@ -1903,21 +1919,24 @@ function renderTeamTable(){
   S.teamFiltered=dcArr;
   const total=dcArr.length,start=(S.teamPage-1)*S.teamPageSize,end=Math.min(start+S.teamPageSize,total);
   const rows=dcArr.slice(start,end);
-  document.getElementById('team-tbody').innerHTML=rows.length?rows.map((m,i)=>`<tr onclick="showDCDetail('${m.dc.replace(/'/g,"\\'")}')">
+  S.teamData=data;
+  const tdc=(m,metric,val,style)=>`<td class="td-click" data-m="${metric}" style="${style}" title="กดดูรายละเอียด">${val}</td>`;
+  document.getElementById('team-tbody').innerHTML=rows.length?rows.map((m,i)=>`<tr data-dc="${escAttr(m.dc)}" onclick="showDCDetail(this.dataset.dc)">
     <td style="color:var(--text3);text-align:center">${start+i+1}</td>
     <td style="font-weight:600">${m.dc}</td>
     <td style="text-align:center">${m.cs}</td>
-    <td style="text-align:center;font-weight:700">${m.tot}</td>
-    <td style="text-align:center;color:var(--accent2);font-weight:700">${m.on}</td>
-    <td style="text-align:center;color:var(--warn);font-weight:700">${m.lt}</td>
-    <td style="text-align:center;color:#2f8f8f;font-weight:700">${m.wp}</td>
-    <td style="text-align:center;color:var(--purple);font-weight:700">${m.ab}</td>
-    <td style="text-align:center;font-weight:700">${m.tot?(m.on/m.tot*100).toFixed(1)+'%':'-'}</td>
-    <td style="text-align:right;color:var(--danger);font-weight:700">${m.fine>0?m.fine.toLocaleString():'-'}</td>
-    <td style="text-align:right">${m.bd>0?m.bd.toLocaleString():'-'}</td>
-    <td style="text-align:center">${m.bt?(m.bd/m.bt*100).toFixed(1)+'%':'-'}</td>
+    ${tdc(m,'tot',m.tot,'text-align:center;font-weight:700')}
+    ${tdc(m,'on',m.on,'text-align:center;color:var(--accent2);font-weight:700')}
+    ${tdc(m,'lt',m.lt,'text-align:center;color:var(--warn);font-weight:700')}
+    ${tdc(m,'wp',m.wp,'text-align:center;color:#2f8f8f;font-weight:700')}
+    ${tdc(m,'ab',m.ab,'text-align:center;color:var(--purple);font-weight:700')}
+    ${tdc(m,'pct',m.tot?(m.on/m.tot*100).toFixed(1)+'%':'-','text-align:center;font-weight:700')}
+    ${tdc(m,'fine',m.fine>0?m.fine.toLocaleString():'-','text-align:right;color:var(--danger);font-weight:700')}
+    ${tdc(m,'bd',m.bd>0?m.bd.toLocaleString():'-','text-align:right')}
+    ${tdc(m,'bpct',m.bt?(m.bd/m.bt*100).toFixed(1)+'%':'-','text-align:center')}
   </tr>`)
   .join(''):'<tr><td colspan="12" class="no-data">ไม่พบข้อมูล</td></tr>';
+  renderTeamTotals(dcArr);
   document.getElementById('team-count').textContent=`${dcArr.length} DC จาก ${data.length.toLocaleString()} รายการ`;
   document.getElementById('team-pg-info').textContent=`${start+1}–${end} จาก ${total}`;
   document.getElementById('team-pg-prev').disabled=S.teamPage<=1;
@@ -2237,7 +2256,94 @@ function statusBadge(status){
   if(status==='Check in ไม่ตรงจุด')return'<span class="s-wrongplace">ไม่ตรงจุด</span>';
   return'<span class="s-nocheckin">ไม่ Check in</span>';
 }
+// ─── ประชุมทีมงาน: กดตัวเลขทุกช่อง (ราย DC และแถวรวม) เพื่อดูรายการเบื้องหลัง ───
+function escAttr(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function renderTeamTotals(dcArr){
+  const tb=document.getElementById('team-tbody'); if(!tb)return;
+  const table=tb.closest('table'); let tf=document.getElementById('team-tfoot');
+  if(!tf){tf=document.createElement('tfoot');tf.id='team-tfoot';table.appendChild(tf);
+    tf.addEventListener('click',e=>{const c=e.target.closest('[data-m]');if(c)showTeamDetail('',c.dataset.m);});}
+  if(!dcArr.length){tf.innerHTML='';return;}
+  const t={tot:0,on:0,lt:0,wp:0,ab:0,fine:0,bd:0,bt:0};
+  dcArr.forEach(m=>{for(const k in t)t[k]+=m[k]||0;});
+  const c=(metric,val,style)=>`<td class="td-click" data-m="${metric}" style="${style}" title="กดดูรายละเอียดทุก DC">${val}</td>`;
+  tf.innerHTML=`<tr class="team-total-row"><td></td><td style="font-weight:700">รวมทุก DC (${dcArr.length})</td><td></td>
+    ${c('tot',t.tot.toLocaleString(),'text-align:center;font-weight:700')}
+    ${c('on',t.on.toLocaleString(),'text-align:center;color:var(--accent2);font-weight:700')}
+    ${c('lt',t.lt.toLocaleString(),'text-align:center;color:var(--warn);font-weight:700')}
+    ${c('wp',t.wp.toLocaleString(),'text-align:center;color:#2f8f8f;font-weight:700')}
+    ${c('ab',t.ab.toLocaleString(),'text-align:center;color:var(--purple);font-weight:700')}
+    ${c('pct',t.tot?(t.on/t.tot*100).toFixed(1)+'%':'-','text-align:center;font-weight:700')}
+    ${c('fine',t.fine>0?t.fine.toLocaleString():'-','text-align:right;color:var(--danger);font-weight:700')}
+    ${c('bd',t.bd>0?t.bd.toLocaleString():'-','text-align:right;font-weight:700')}
+    ${c('bpct',t.bt?(t.bd/t.bt*100).toFixed(1)+'%':'-','text-align:center;font-weight:700')}</tr>`;
+}
+const TEAM_METRIC={
+  tot:{t:'รถทั้งหมด',f:r=>true},
+  on:{t:'ตรงเวลา',f:r=>r.status==='ตรงเวลา'},
+  lt:{t:'มาสาย',f:r=>r.status==='สาย'},
+  wp:{t:'Check in ไม่ตรงจุด',f:r=>r.status==='Check in ไม่ตรงจุด'},
+  ab:{t:'ไม่ Check in',f:r=>r.status!=='ตรงเวลา'&&r.status!=='สาย'&&r.status!=='Check in ไม่ตรงจุด'},
+  pct:{t:'ทุกสถานะ (% ตรงเวลา)',f:r=>true},
+  fine:{t:'มีค่าปรับ',f:r=>r.fine>0},
+  bd:{t:'บิลส่งได้',f:r=>r.billDelivered>0},
+  bpct:{t:'บิลทั้งหมด (% ส่งสำเร็จ)',f:r=>(r.billDelivered+r.billFailed)>0}
+};
+let _td={rows:[],view:'list',q:'',title:''};
+function showTeamDetail(dc,metric){
+  const M=TEAM_METRIC[metric]; if(!M)return;
+  const base=(S.teamData||getFilteredData()).filter(r=>!dc||r.dc===dc);
+  const rows=base.filter(M.f).sort((a,b)=>a.dateISO.localeCompare(b.dateISO)||String(a.dc).localeCompare(String(b.dc),'th')||String(a.plate||a.code).localeCompare(String(b.plate||b.code),'th'));
+  _td={rows,view:metric==='fine'?'plate':'list',q:'',title:(dc||'ทุก DC')+' · '+M.t,dc,metric};
+  document.getElementById('modal-title').textContent=_td.title;
+  document.querySelector('#detail-modal .modal-box').classList.add('modal-wide');
+  renderTeamDetail();
+  document.getElementById('detail-modal').classList.add('show');
+}
+function renderTeamDetail(){
+  const q=_td.q.trim().toLowerCase();
+  const rows=q?_td.rows.filter(r=>[r.plate,r.code,r.dc,r.vehicleType,r.status].some(v=>String(v||'').toLowerCase().includes(q))):_td.rows;
+  const fine=rows.reduce((a,r)=>a+r.fine,0), cars=new Set(rows.map(r=>r.plate||r.code)).size, waived=rows.filter(r=>r.waived).length;
+  const k=getKPIs(rows), showDC=!_td.dc, bills=_td.metric==='bd'||_td.metric==='bpct';
+  let html=`<div class="modal-grid" style="margin-bottom:12px">
+    <div class="modal-stat"><div class="modal-stat-label">รายการ</div><div class="modal-stat-value">${rows.length.toLocaleString()}</div></div>
+    <div class="modal-stat"><div class="modal-stat-label">ทะเบียน</div><div class="modal-stat-value">${cars.toLocaleString()} คัน</div></div>
+    <div class="modal-stat"><div class="modal-stat-label">ตรงเวลา / สาย / ไม่ตรงจุด / ไม่ Check in</div><div class="modal-stat-value" style="font-size:15px">${k.on} / ${k.lt} / ${k.wp} / ${k.ab}</div></div>
+    <div class="modal-stat"><div class="modal-stat-label">ค่าปรับรวม</div><div class="modal-stat-value" style="color:var(--danger)">${fine.toLocaleString()} บาท</div></div>
+  </div>
+  <div class="td-tools">
+    <input type="search" id="td-q" placeholder="🔍 ค้นหาทะเบียน / รหัสรถ${showDC?' / DC':''}" value="${escAttr(_td.q)}" aria-label="ค้นหาในรายการ">
+    <div class="td-seg" role="group" aria-label="มุมมอง"><button type="button" data-v="list" class="${_td.view==='list'?'on':''}">รายการทั้งหมด</button><button type="button" data-v="plate" class="${_td.view==='plate'?'on':''}">สรุปตามทะเบียน</button></div>
+    <button type="button" class="settings-btn settings-btn-secondary" id="td-xlsx" style="font-size:11.5px;padding:5px 12px">⬇ Excel</button>
+  </div>`;
+  if(waived)html+=`<div style="font-size:11.5px;color:var(--text2);margin:-4px 0 8px">มีรายการที่ได้รับยกเว้นค่าปรับ (Waive) ${waived} รายการ</div>`;
+  if(_td.view==='plate'){
+    const g={}; rows.forEach(r=>{const key=r.plate||r.code;const x=g[key]||(g[key]={plate:key,code:r.code,dcs:new Set(),n:0,on:0,lt:0,wp:0,ab:0,fine:0});x.dcs.add(r.dc);x.n++;x.fine+=r.fine;
+      if(r.status==='ตรงเวลา')x.on++;else if(r.status==='สาย')x.lt++;else if(r.status==='Check in ไม่ตรงจุด')x.wp++;else x.ab++;});
+    const arr=Object.values(g).sort((a,b)=>b.fine-a.fine||b.n-a.n);
+    html+=`<div class="td-wrap"><table class="td-table"><thead><tr><th>#</th><th>ทะเบียน</th><th>รหัสรถ</th>${showDC?'<th>DC</th>':''}<th class="r">รายการ</th><th class="r">ตรงเวลา</th><th class="r">สาย</th><th class="r">ไม่ตรงจุด</th><th class="r">ไม่ Check in</th><th class="r">ค่าปรับ (บาท)</th></tr></thead><tbody>${
+      arr.map((x,i)=>`<tr><td>${i+1}</td><td style="font-weight:600">${x.plate}</td><td>${x.code||'-'}</td>${showDC?`<td>${[...x.dcs].join(', ')}</td>`:''}<td class="r">${x.n}</td><td class="r">${x.on}</td><td class="r">${x.lt}</td><td class="r">${x.wp}</td><td class="r">${x.ab}</td><td class="r" style="color:var(--danger);font-weight:700">${x.fine?x.fine.toLocaleString():'-'}</td></tr>`).join('')||'<tr><td colspan="10" class="no-data">ไม่พบข้อมูล</td></tr>'}</tbody></table></div>`;
+  }else{
+    const LIM=1500, shown=rows.slice(0,LIM);
+    html+=`<div class="td-wrap"><table class="td-table"><thead><tr><th>วันที่</th>${showDC?'<th>DC</th>':''}<th>ทะเบียน</th><th>รหัสรถ</th><th>ประเภทรถ</th><th>เข้างาน</th><th>Check in</th><th class="r">ช้า (นาที)</th><th class="r">ระยะ (กม.)</th><th>สถานะ</th><th class="r">ค่าปรับ</th>${bills?'<th class="r">บิลส่งได้</th><th class="r">บิลทั้งหมด</th>':''}</tr></thead><tbody>${
+      shown.map(r=>`<tr><td>${r.dateTH}</td>${showDC?`<td>${r.dc}</td>`:''}<td style="font-weight:600">${r.plate||'-'}</td><td>${r.code||'-'}</td><td>${r.vehicleType||'-'}</td><td>${r.configStart||'-'}</td><td>${r.checkinTime||'-'}</td><td class="r">${r.diffMin!==null&&r.diffMin!==undefined?r.diffMin:'-'}</td><td class="r">${r.distanceKm!==null&&r.distanceKm!==undefined?Number(r.distanceKm).toFixed(2):'-'}</td><td>${statusBadge(r.status)}${r.waived?'<span class="s-waived">ยกเว้น</span>':''}</td><td class="r" style="color:var(--danger);font-weight:700">${r.fine>0?r.fine.toLocaleString():'-'}</td>${bills?`<td class="r">${r.billDelivered}</td><td class="r">${r.billDelivered+r.billFailed}</td>`:''}</tr>`).join('')||'<tr><td colspan="13" class="no-data">ไม่พบข้อมูล</td></tr>'}</tbody></table></div>`+
+      (rows.length>LIM?`<div style="font-size:11.5px;color:var(--text2);margin-top:6px">แสดง ${LIM.toLocaleString()} จาก ${rows.length.toLocaleString()} รายการ — กด ⬇ Excel เพื่อดูทั้งหมด</div>`:'');
+  }
+  const body=document.getElementById('modal-body'); body.innerHTML=html;
+  const qi=document.getElementById('td-q');
+  qi.oninput=()=>{_td.q=qi.value;const pos=qi.selectionStart;renderTeamDetail();const n=document.getElementById('td-q');n.focus();n.setSelectionRange(pos,pos);};
+  body.querySelectorAll('.td-seg button').forEach(b=>b.onclick=()=>{_td.view=b.dataset.v;renderTeamDetail();});
+  document.getElementById('td-xlsx').onclick=()=>exportTeamDetail(rows);
+}
+function exportTeamDetail(rows){
+  const head=['วันที่','DC','ทะเบียน','รหัสรถ','ประเภทรถ','ชนิดรถ','เวลาเข้างาน','เวลา Check in','ช้า (นาที)','ระยะ (กม.)','สถานะ','ยกเว้น (Waive)','ค่าปรับ (บาท)','บิลส่งได้','บิลส่งไม่ได้'];
+  const aoa=[[_td.title],[],head].concat(rows.map(r=>[r.dateTH,r.dc,r.plate,r.code,r.vehicleType,r.vehicleKind,r.configStart,r.checkinTime,r.diffMin!==null&&r.diffMin!==undefined?r.diffMin:'',r.distanceKm!==null&&r.distanceKm!==undefined?+Number(r.distanceKm).toFixed(2):'',r.status,r.waived?'ใช่':'',r.fine,r.billDelivered,r.billFailed]));
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),'รายละเอียด');
+  const dcPart=(String(_td.dc||'all').match(/^\d+/)||[_td.dc?'DC':'all'])[0];
+  XLSX.writeFile(wb,`NIMEX-CheckinDaily-detail-${dcPart}-${_td.metric}.xlsx`);
+}
 function showDCDetail(dc){
+  document.querySelector('#detail-modal .modal-box')?.classList.remove('modal-wide');
   const isExec=document.querySelector('.page.active')?.id==='page-exec';
   const data=(isExec?getExecData():visibleResults()).filter(r=>r.dc===dc);
   const{tot,on,lt,ab,wp,fn}=getKPIs(data);
@@ -3441,8 +3547,8 @@ document.addEventListener('DOMContentLoaded', function(){
 })();
 
 </script>
-<script src="config.js?v=3"></script>
-<script src="boot.js?v=3"></script>
-<script src="share.js?v=3"></script>
+<script src="config.js?v=4"></script>
+<script src="boot.js?v=4"></script>
+<script src="share.js?v=4"></script>
 </body>
 </html>
