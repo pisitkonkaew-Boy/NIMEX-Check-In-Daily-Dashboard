@@ -452,6 +452,12 @@ body:not(.nx-admin) .data-badge{pointer-events:none}
 .td-table th{position:sticky;top:0;background:#0a2a5e;color:#fff;font-weight:600;text-align:left;padding:7px 8px;white-space:nowrap}
 .td-table td{padding:6px 8px;border-top:1px solid var(--border);white-space:nowrap}
 .td-table .r{text-align:right}
+.td-waive{font-family:inherit;font-size:12px;font-weight:700;color:var(--danger);background:transparent;border:1px solid transparent;border-radius:999px;padding:3px 8px;cursor:pointer;white-space:nowrap;min-height:28px}
+.td-waive span{display:none;font-weight:600;font-size:11px;color:#0a2a5e;margin-left:4px}
+.td-waive:hover,.td-waive:focus-visible{border-color:#d4af37;background:rgba(212,175,55,.14)}
+.td-waive:hover span,.td-waive:focus-visible span{display:inline}
+.td-waive.is-waived{color:var(--text2);font-weight:600}
+.td-waive.is-waived s{color:var(--text3)}
 .td-table tbody tr:nth-child(even) td{background:rgba(10,42,94,.03)}
 @media (max-width:640px){.modal-box.modal-wide{min-width:0;width:96vw;padding:16px}}
 .cfg-excluded td{opacity:.55}
@@ -1558,7 +1564,7 @@ function updateBadge(){
   document.getElementById('data-badge').textContent=`📁 ${label} (${vis.length.toLocaleString()})`;
 }
 
-function toggleWaiveRecord(dc,code,dateISO){
+function toggleWaiveRecord(dc,code,dateISO,keepModal){
   const r=S.results.find(r=>r.dc===dc&&r.code===code&&r.dateISO===dateISO);
   if(!r)return;
   if(r.waived){
@@ -1571,6 +1577,7 @@ function toggleWaiveRecord(dc,code,dateISO){
     showToast('🎫 Waive รายการนี้แล้ว');
   }
   saveWaive();saveToStorage(S.results);buildAllViews();
+  if(keepModal){if(typeof keepModal==='function')keepModal();return;}
   showDCDetail(dc); // refresh modal
 }
 function waiveAllInDC(dc,data){
@@ -2286,7 +2293,7 @@ const TEAM_METRIC={
   wp:{t:'Check in ไม่ตรงจุด',f:r=>r.status==='Check in ไม่ตรงจุด'},
   ab:{t:'ไม่ Check in',f:r=>r.status!=='ตรงเวลา'&&r.status!=='สาย'&&r.status!=='Check in ไม่ตรงจุด'},
   pct:{t:'ทุกสถานะ (% ตรงเวลา)',f:r=>true},
-  fine:{t:'มีค่าปรับ',f:r=>r.fine>0},
+  fine:{t:'มีค่าปรับ',f:r=>r.fine>0||r.waived},
   bd:{t:'บิลส่งได้',f:r=>r.billDelivered>0},
   bpct:{t:'บิลทั้งหมด (% ส่งสำเร็จ)',f:r=>(r.billDelivered+r.billFailed)>0}
 };
@@ -2300,6 +2307,21 @@ function showTeamDetail(dc,metric){
   document.querySelector('#detail-modal .modal-box').classList.add('modal-wide');
   renderTeamDetail();
   document.getElementById('detail-modal').classList.add('show');
+}
+function canWaive(){return !window.CID||CID.isAdmin();}
+function fineCell(r){
+  const k=escAttr(r.dc+'|'+r.code+'|'+r.dateISO);
+  if(r.waived){
+    const orig=r.waivedFine?`<s>${Number(r.waivedFine).toLocaleString()}</s> `:'';
+    return canWaive()?`<td class="r"><button type="button" class="td-waive is-waived" data-wk="${k}" title="กดเพื่อยกเลิก Waive">${orig}ยกเว้น ↩</button></td>`:`<td class="r" style="color:var(--text2)">${orig}ยกเว้น</td>`;
+  }
+  if(!(r.fine>0))return '<td class="r">-</td>';
+  return canWaive()?`<td class="r"><button type="button" class="td-waive" data-wk="${k}" title="กดเพื่อ Waive ค่าปรับรายการนี้">${r.fine.toLocaleString()} <span>🎫 Waive</span></button></td>`:`<td class="r" style="color:var(--danger);font-weight:700">${r.fine.toLocaleString()}</td>`;
+}
+function teamToggleWaive(key){
+  const [dc,code,dateISO]=key.split('|');
+  const wrap=document.querySelector('#modal-body .td-wrap'), top=wrap?wrap.scrollTop:0;
+  toggleWaiveRecord(dc,code,dateISO,()=>{renderTeamDetail();const w=document.querySelector('#modal-body .td-wrap');if(w)w.scrollTop=top;});
 }
 function renderTeamDetail(){
   const q=_td.q.trim().toLowerCase();
@@ -2327,7 +2349,7 @@ function renderTeamDetail(){
   }else{
     const LIM=1500, shown=rows.slice(0,LIM);
     html+=`<div class="td-wrap"><table class="td-table"><thead><tr><th>วันที่</th>${showDC?'<th>DC</th>':''}<th>ทะเบียน</th><th>รหัสรถ</th><th>ประเภทรถ</th><th>เข้างาน</th><th>Check in</th><th class="r">ช้า (นาที)</th><th class="r">ระยะ (กม.)</th><th>สถานะ</th><th class="r">ค่าปรับ</th>${bills?'<th class="r">บิลส่งได้</th><th class="r">บิลทั้งหมด</th>':''}</tr></thead><tbody>${
-      shown.map(r=>`<tr><td>${r.dateTH}</td>${showDC?`<td>${r.dc}</td>`:''}<td style="font-weight:600">${r.plate||'-'}</td><td>${r.code||'-'}</td><td>${r.vehicleType||'-'}</td><td>${r.configStart||'-'}</td><td>${r.checkinTime||'-'}</td><td class="r">${r.diffMin!==null&&r.diffMin!==undefined?r.diffMin:'-'}</td><td class="r">${r.distanceKm!==null&&r.distanceKm!==undefined?Number(r.distanceKm).toFixed(2):'-'}</td><td>${statusBadge(r.status)}${r.waived?'<span class="s-waived">ยกเว้น</span>':''}</td><td class="r" style="color:var(--danger);font-weight:700">${r.fine>0?r.fine.toLocaleString():'-'}</td>${bills?`<td class="r">${r.billDelivered}</td><td class="r">${r.billDelivered+r.billFailed}</td>`:''}</tr>`).join('')||'<tr><td colspan="13" class="no-data">ไม่พบข้อมูล</td></tr>'}</tbody></table></div>`+
+      shown.map(r=>`<tr><td>${r.dateTH}</td>${showDC?`<td>${r.dc}</td>`:''}<td style="font-weight:600">${r.plate||'-'}</td><td>${r.code||'-'}</td><td>${r.vehicleType||'-'}</td><td>${r.configStart||'-'}</td><td>${r.checkinTime||'-'}</td><td class="r">${r.diffMin!==null&&r.diffMin!==undefined?r.diffMin:'-'}</td><td class="r">${r.distanceKm!==null&&r.distanceKm!==undefined?Number(r.distanceKm).toFixed(2):'-'}</td><td>${statusBadge(r.status)}${r.waived?'<span class="s-waived">ยกเว้น</span>':''}</td>${fineCell(r)}${bills?`<td class="r">${r.billDelivered}</td><td class="r">${r.billDelivered+r.billFailed}</td>`:''}</tr>`).join('')||'<tr><td colspan="13" class="no-data">ไม่พบข้อมูล</td></tr>'}</tbody></table></div>`+
       (rows.length>LIM?`<div style="font-size:11.5px;color:var(--text2);margin-top:6px">แสดง ${LIM.toLocaleString()} จาก ${rows.length.toLocaleString()} รายการ — กด ⬇ Excel เพื่อดูทั้งหมด</div>`:'');
   }
   const body=document.getElementById('modal-body'); body.innerHTML=html;
@@ -2335,6 +2357,7 @@ function renderTeamDetail(){
   qi.oninput=()=>{_td.q=qi.value;const pos=qi.selectionStart;renderTeamDetail();const n=document.getElementById('td-q');n.focus();n.setSelectionRange(pos,pos);};
   body.querySelectorAll('.td-seg button').forEach(b=>b.onclick=()=>{_td.view=b.dataset.v;renderTeamDetail();});
   document.getElementById('td-xlsx').onclick=()=>exportTeamDetail(rows);
+  body.querySelectorAll('[data-wk]').forEach(b=>b.onclick=e=>{e.stopPropagation();teamToggleWaive(b.dataset.wk);});
 }
 function exportTeamDetail(rows){
   const head=['วันที่','DC','ทะเบียน','รหัสรถ','ประเภทรถ','ชนิดรถ','เวลาเข้างาน','เวลา Check in','ช้า (นาที)','ระยะ (กม.)','สถานะ','ยกเว้น (Waive)','ค่าปรับ (บาท)','บิลส่งได้','บิลส่งไม่ได้'];
@@ -3548,8 +3571,8 @@ document.addEventListener('DOMContentLoaded', function(){
 })();
 
 </script>
-<script src="config.js?v=4"></script>
-<script src="boot.js?v=4"></script>
-<script src="share.js?v=4"></script>
+<script src="config.js?v=5"></script>
+<script src="boot.js?v=5"></script>
+<script src="share.js?v=5"></script>
 </body>
 </html>
