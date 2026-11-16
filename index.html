@@ -1387,7 +1387,7 @@ function loadFromStorage(){
     if(raw){
       const parsed=JSON.parse(raw);
       if(Array.isArray(parsed)&&parsed.length>0){
-        S.results=parsed;
+        S.results=dropSundays(parsed);
         const meta=metaRaw?JSON.parse(metaRaw):{count:parsed.length,savedAt:null,dates:[]};
         updateStorageStatusBar(meta);
         updateBadge();buildAllViews();
@@ -1572,7 +1572,8 @@ function _proc(){
       if(existMap[k])updated++;else added++;
       existMap[k]=rec;
     }
-    S.results=Object.values(existMap).sort((a,b)=>
+    const sunCut=Object.values(existMap).filter(r=>isSundayISO(r.dateISO)).length;
+    S.results=dropSundays(Object.values(existMap)).sort((a,b)=>
       a.dc<b.dc?-1:a.dc>b.dc?1:a.dateISO<b.dateISO?-1:a.dateISO>b.dateISO?1:a.code.localeCompare(b.code));
 
     saveToStorage(S.results);
@@ -1580,7 +1581,7 @@ function _proc(){
     const rbtn=document.getElementById('btn-reprocess');if(rbtn)rbtn.disabled=false;
     const mode=S.efficiencyRaw?'Full mode':'Check-in only';
     document.getElementById('process-status').textContent=
-      `✓ [${mode}] เพิ่ม ${added.toLocaleString()} | อัปเดต ${updated.toLocaleString()} | รวมสะสม ${S.results.length.toLocaleString()} รายการ`;
+      `✓ [${mode}] เพิ่ม ${added.toLocaleString()} | อัปเดต ${updated.toLocaleString()} | รวมสะสม ${S.results.length.toLocaleString()} รายการ${sunCut?` | ตัดวันอาทิตย์ ${sunCut.toLocaleString()} รายการ`:''}`;
     showUploadPreview();hideLoading();
   }catch(e){hideLoading();alert('เกิดข้อผิดพลาด: '+e.message);console.error(e);}
 }
@@ -2615,6 +2616,9 @@ const WAIVE_KEY='nimex_waive_v1';
 const DCX_KEY='nimex_dc_exclude_v1'; // DC ที่ "ยกเว้นทุกเงื่อนไข" — ไม่นับและไม่แสดงผลทุกหน้า (ข้อมูลยังเก็บไว้ ติ๊กออกแล้วกลับมาแสดง)
 let DC_EXCLUDE=new Set();
 function isDCExcluded(dc){return DC_EXCLUDE.has(normDC(dc));}
+/* วันอาทิตย์: ไม่คำนวณ ไม่แสดง และตัดออกจากข้อมูลเสมอ */
+function isSundayISO(d){return !!d&&new Date(d+'T00:00:00').getDay()===0;}
+function dropSundays(a){return (a||[]).filter(r=>!isSundayISO(r.dateISO));}
 function visibleResults(){return DC_EXCLUDE.size?S.results.filter(r=>!isDCExcluded(r.dc)):S.results;}
 function toggleDCExclude(cb){
   const dc=normDC(cb.dataset.dc);
@@ -3603,8 +3607,8 @@ document.addEventListener('DOMContentLoaded', function(){
 })();
 
 </script>
-<script src="config.js?v=9"></script>
-<script src="boot.js?v=8"></script>
+<script src="config.js?v=10"></script>
+<script src="boot.js?v=10"></script>
 <script src="share.js?v=8"></script>
 <script src="period.js?v=7"></script>
 </body>

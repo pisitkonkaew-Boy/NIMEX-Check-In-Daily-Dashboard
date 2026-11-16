@@ -160,7 +160,7 @@ function localBackup() {
 }
 function migrate() {
   var L = localBackup(); if (!L) return;
-  S.results = L.rows;
+  S.results = L.rows.filter(function (r) { return !(r.dateISO && new Date(r.dateISO + 'T00:00:00').getDay() === 0); });
   SYNC.forEach(function (k) { var v = orig.load(k); if (v != null) { MEM[k] = v; dirty[k] = 1; } });
   dirty.results = 1;
   applyAll(); bar(); saveAll();
@@ -214,7 +214,9 @@ function start() {
     var ci = {}; (R.cols || COLS).forEach(function (c, i) { ci[c] = i; });
     S.results = (R.rows || []).map(function (a) { return dec(COLS.map(function (c) { return a[ci[c]]; })); });
     sheetCount = S.results.length; updated = R.updated || '';
-    loaded = true; dirty = {};
+    var noSun = S.results.filter(function (r) { return !(r.dateISO && new Date(r.dateISO + 'T00:00:00').getDay() === 0); });
+    var sunCut = S.results.length - noSun.length; S.results = noSun;
+    loaded = true; dirty = {}; if (sunCut) dirty.results = 1;   /* มีวันอาทิตย์ใน Sheet → แอดมินกดบันทึกเพื่อลบออก */
     hideLoading(); applyAll(); setAdmin(x[0]);
     if (!x[0] && wantAdmin) openLogin();
   }).catch(function () {
