@@ -22,10 +22,34 @@ var CHARTS = [
   ['grade', 'สัดส่วนเกรด DC + แย่สุด 3 อันดับ'],
   ['dc_worst_on', 'DC % ตรงเวลาต่ำสุด 10 อันดับ'],
   ['dc_worst_mix', '% สาย / ไม่ตรงจุด / ไม่ Check in ของ DC ที่ตรงเวลาต่ำสุด'],
-  ['dc_fine', 'DC ค่าปรับสูงสุด 10 อันดับ']
+  ['dc_fine', 'DC ค่าปรับสูงสุด 10 อันดับ'],
+  ['reg_on', '% ตรงเวลารายภาค · เทียบช่วงก่อนหน้า'],
+  ['reg_mix', 'สัดส่วน 4 สถานะรายภาค'],
+  ['reg_fine', 'ค่าปรับรายภาค แยกสาเหตุ'],
+  ['dc_worst_reg', 'DC % ตรงเวลาต่ำสุด 10 อันดับ (ระบุภาค)']
 ];
 var CBY = {}; CHARTS.forEach(function (c) { CBY[c[0]] = c[1]; });
-var DEF = { gradeOn: false, grade: { A: 90, B: 85, C: 80, D: 70 }, minRows: 10, charts: ['daily_on', 'daily_mix', 'fine_cause', 'dc_worst_on'] };
+var DEF = { gradeOn: false, grade: { A: 90, B: 85, C: 80, D: 70 }, minRows: 10, charts: ['daily_on', 'daily_mix', 'fine_cause', 'dc_worst_on'], chartsDay: ['reg_on', 'reg_mix', 'reg_fine', 'dc_worst_reg'] };
+/* ภาค: ใช้ DC → โซน ชุดเดียวกับระบบ Check-in Performance (เหนือ/อีสาน/ใต้ รวมโซนย่อย) */
+var REG_ORDER = ['BKK', 'กลาง', 'ตะวันออก', 'ตะวันตก', 'เหนือ', 'อีสาน', 'ใต้'];
+function zmap() { var c = (window.CID && CID.getShare()) || {}; return window.CID_ZMAP || c.zmap || {}; }
+/* ดึง DC → โซน ล่าสุดจาก Performance (ครั้งเดียวต่อการเปิดหน้า) แล้วเก็บสำเนาไว้ในค่าตั้งของระบบนี้ถ้าเปลี่ยน */
+var zoneP = null;
+function ensureZmap() {
+  if (window.CID_ZMAP) return Promise.resolve(window.CID_ZMAP);
+  if (zoneP) return zoneP;
+  if (!window.CID_ZONE_API) return Promise.resolve(zmap());
+  zoneP = fetch(window.CID_ZONE_API + (window.CID_ZONE_API.indexOf('?') < 0 ? '?' : '&') + 'z=' + Date.now()).then(function (r) { return r.json(); }).then(function (j) {
+    var m = j && (j.meta || j.data || j).zmap; if (!m || typeof m !== 'object' || !Object.keys(m).length) throw new Error('no zmap');
+    window.CID_ZMAP = m;
+    var cur = (window.CID && CID.getShare()) || {};
+    if (window.CID && CID.isAdmin() && JSON.stringify(cur.zmap || {}) !== JSON.stringify(m)) CID.saveShare(Object.assign({}, cur, { zmap: m })).catch(function () {});
+    return m;
+  }).catch(function () { zoneP = null; return zmap(); });
+  return zoneP;
+}
+function regionOf(dc) { var z = zmap()[String(dc).split(' ')[0]]; if (!z) return 'ไม่ระบุ'; return /^เหนือ/.test(z) ? 'เหนือ' : /^อีสาน/.test(z) ? 'อีสาน' : /^ใต้/.test(z) ? 'ใต้' : z; }
+function hasRegions() { return Object.keys(zmap()).length > 0; }
 var GC = { A: '#123f8c', B: '#6e93d6', C: '#d4a72c', D: '#d9822b', F: '#b8334a' };
 var GE = { A: '🔵', B: '🟦', C: '🟡', D: '🟠', F: '🔴' }, MD = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];
 var GOOD = '#1a9e5f', BAD = '#b8334a';           /* ผลต่าง: ดี = เขียว แย่ = แดง (ตามสกิล) */
@@ -47,7 +71,8 @@ function cut(s, n) { s = String(s); return s.length > n ? s.slice(0, n - 1) + '�
 function cfg() {
   var s = (window.CID && CID.getShare()) || {}, g = s.grade || DEF.grade;
   var ch = Array.isArray(s.charts) && s.charts.length === 4 && s.charts.every(function (c) { return CBY[c]; }) ? s.charts.slice() : DEF.charts.slice();
-  return { gradeOn: !!s.gradeOn, grade: g, minRows: s.minRows || DEF.minRows, charts: ch };
+  var chd = Array.isArray(s.chartsDay) && s.chartsDay.length === 4 && s.chartsDay.every(function (c) { return CBY[c]; }) ? s.chartsDay.slice() : DEF.chartsDay.slice();
+  return { gradeOn: !!s.gradeOn, grade: g, minRows: s.minRows || DEF.minRows, charts: ch, chartsDay: chd };
 }
 function grade(v) { var c = cfg(), g = c.grade; return !c.gradeOn || !Number.isFinite(v) ? '' : v >= g.A ? 'A' : v >= g.B ? 'B' : v >= g.C ? 'C' : v >= g.D ? 'D' : 'F'; }
 function adm() { return !window.CID || CID.isAdmin(); }
@@ -88,7 +113,7 @@ function period() {
     curLabel: fmtTH(d0) + (d1 !== d0 ? ' – ' + fmtTH(d1) : '') + ' (' + N + ' วันทำการ)',
     prevLabel: prev.length ? fmtTH(p0) + (p1_ !== p0 ? ' – ' + fmtTH(p1_) : '') + (pd < N ? ' (มีข้อมูล ' + pd + ' จาก ' + N + ' วัน)' : '') : '' };
 }
-function scopeText() { var n = new Set(getFilteredData().map(function (r) { return r.dc; })).size; return 'ทุก DC (' + nf(n) + ' DC)'; }
+function scopeText() { var d = getFilteredData(), n = new Set(d.map(function (r) { return r.dc; })).size, rg = hasRegions() ? new Set(d.map(function (r) { return regionOf(r.dc); })).size : 0; return 'ทุก DC (' + nf(n) + ' DC' + (rg ? ' · ' + rg + ' ภาค' : '') + ')'; }
 function otherFilters() {
   var t = [];
   var pm = window.cidPeriod ? cidPeriod.get().mode : 'custom';
@@ -111,6 +136,11 @@ function dcData(rows) { var out = []; group(rows, function (r) { return r.dc; })
 function dcRanked(P) { var mr = cfg().minRows; return dcData(P.cur).filter(function (s) { return s.n >= mr; }); }
 function dcWorst10(P) { return dcRanked(P).sort(function (a, b) { return a.on - b.on || b.n - a.n; }).slice(0, 10); }
 function dcFine10(P) { return dcData(P.cur).filter(function (s) { return s.fine > 0; }).sort(function (a, b) { return b.fine - a.fine; }).slice(0, 10); }
+function regData(rows) {
+  var g = group(rows, function (r) { return regionOf(r.dc); }), out = [];
+  REG_ORDER.concat(['ไม่ระบุ']).forEach(function (k) { if (g.has(k)) { var s = stats(g.get(k)); s.name = k; s.dcs = new Set(g.get(k).map(function (r) { return r.dc; })).size; out.push(s); } });
+  return out;
+}
 function vtData(P) { var out = []; group(P.cur, function (r) { return r.vehicleType || '-'; }).forEach(function (a, k) { var s = stats(a); s.name = k; out.push(s); }); return out.sort(function (a, b) { return b.n - a.n; }); }
 function plateData(P) {   /* เรียงแบบเดียวกับหน้า "วิเคราะห์ความเสี่ยง": สาย + ไม่ตรงจุด×2 + ไม่ Check in×2 */
   var m = {};
@@ -215,7 +245,7 @@ function hbars(x, y, w, h, items, color, pct) {
   items.forEach(function (it, i) {
     var yy = y + i * rh, len = Number.isFinite(it.v) ? Math.max(2, (Math.max(it.v, ax.lo) - ax.lo) / (ax.hi - ax.lo) * bwd) : 0, cy = yy + rh / 2;
     if (two) s += T(x, cy - 3, cut(it.name, 26), { fs: 16, fw: 600 }) + T(x, cy + 16, nf(it.n) + ' รายการ', { fs: 12.5, c: '#55657f' });
-    else s += T(x, cy + 5, cut(it.name, 22), { fs: 14, fw: 600 }) + T(x + lab - 8, cy + 5, nf(it.n) + ' รายการ', { fs: 11.5, c: '#8a99b3', a: 'end' });
+    else s += T(x, cy + 5, cut(it.name, it.tag ? 18 : 22), { fs: 14, fw: 600 }) + (it.tag ? R(x + lab - 150, cy - 9, 58, 20, '#eef2f9', 10) + T(x + lab - 121, cy + 5, it.tag, { fs: 11.5, fw: 600, c: '#0a2a5e', a: 'middle' }) : '') + T(x + lab - 8, cy + 5, nf(it.n) + ' รายการ', { fs: 11.5, c: '#8a99b3', a: 'end' });
     s += R(x + lab, yy + rh * .2, bwd, rh * .6, '#eef2f9', 6) + R(x + lab, yy + rh * .2, len, rh * .6, color, 6);
     s += T(x + lab + bwd + 10, cy + 6, pct ? p1(it.v) : nf(it.v), { fs: two ? 19 : 15, fw: 600, c: '#0a2a5e' });
   });
@@ -263,10 +293,25 @@ function stack100(x, y, w, h, cols) {
     var cx = x + gw * i + gw / 2, yy = base;
     keys.forEach(function (k) { var v = c.s[k[0]] || 0, hh = v / 100 * ch; yy -= hh; s += R(cx - bw / 2, yy, bw, hh, COL[k[0]]); });
     if (cols.length <= 16) s += T(cx, base - ch * (c.s.on / 100) / 2 + 4, Math.round(c.s.on), { fs: 11, fw: 600, c: '#fff', a: 'middle' });
-    var every = Math.ceil(cols.length / 13); if (i % every === 0 || i === cols.length - 1) s += T(cx, base + 20, c.label, { fs: 11.5, c: '#55657f', a: 'middle' });
+    var every = Math.ceil(cols.length / 13); if (i % every === 0 || i === cols.length - 1) s += T(cx, base + 20, c.label, { fs: c.sub ? 13.5 : 11.5, fw: c.sub ? 600 : 400, c: c.sub ? '#0b1f3f' : '#55657f', a: 'middle' }) + (c.sub ? T(cx, base + 35, c.sub, { fs: 11, c: '#8a99b3', a: 'middle' }) : '');
   });
   s += legend(x, y + 6, keys.map(function (k) { return [k[1], COL[k[0]]]; }));
   return { s: s, note: 'ตัวเลขในแท่ง = % ตรงเวลา' };
+}
+/* แท่งซ้อนค่าจริง: cols [{label, sub, parts:[v...], total, prevTotal}] keys [[name,color]] */
+function stackAbs(x, y, w, h, cols, keys, fmt) {
+  if (!cols.length) return { s: noData(x, y, w, h), note: '' };
+  var mx = 0; cols.forEach(function (c) { mx = Math.max(mx, c.total, Number.isFinite(c.prevTotal) ? c.prevTotal : 0); });
+  var hi = niceMax(mx * 1.12 / 4) * 4, base = y + h - 42, ch = h - 80, gw = w / cols.length, bw = Math.min(56, gw * .5), s = gridY(x, y, w, ch, base, 0, hi, kTick);
+  cols.forEach(function (c, i) {
+    var cx = x + gw * i + gw / 2, yy = base;
+    c.parts.forEach(function (v, j) { var hh = v / hi * ch; if (hh > 0) { yy -= hh; s += R(cx - bw / 2, yy, bw, hh, keys[j][1]); } });
+    if (Number.isFinite(c.prevTotal) && c.prevTotal > 0) { var py = base - c.prevTotal / hi * ch; s += '<line x1="' + (cx - bw / 2 - 6) + '" x2="' + (cx + bw / 2 + 6) + '" y1="' + py + '" y2="' + py + '" stroke="#0a2a5e" stroke-width="2.5" stroke-dasharray="5 3"/>'; }
+    s += T(cx, Math.min(yy, Number.isFinite(c.prevTotal) ? base - c.prevTotal / hi * ch : yy) - 7, fmt(c.total), { fs: 13, fw: 600, c: '#0a2a5e', a: 'middle' });
+    s += T(cx, base + 19, c.label, { fs: 13.5, fw: 600, a: 'middle' }) + (c.sub ? T(cx, base + 35, c.sub, { fs: 11, c: '#8a99b3', a: 'middle' }) : '');
+  });
+  s += legend(x, y + 6, keys);
+  return { s: s, note: '' };
 }
 function donut(cx, cy, r, counts) {
   var tot = 0, s = '', a0 = -Math.PI / 2; ['A','B','C','D','F'].forEach(function (g) { tot += counts[g] || 0; });
@@ -306,6 +351,26 @@ function chart(id, X, Y, PW, PH, P) {
   } else if (id === 'dc_fine') {
     g = hbars(X + 24, y + 4, PW - 48, h - 8, dcFine10(P).map(function (s) { return { name: s.name, n: s.n, v: s.fine }; }), COL.nock, false);
     sub = 'บาท';
+  } else if (id === 'reg_on' || id === 'reg_mix' || id === 'reg_fine' || id === 'dc_worst_reg') {
+    if (!hasRegions()) g = { s: noData(X, Y + 30, PW, PH - 30, 'ยังไม่มีข้อมูลภาคของ DC') };
+    else if (id === 'reg_on') {
+      var RC = regData(P.cur), RP = P.prev ? regData(P.prev) : [], pm = {}; RP.forEach(function (r) { pm[r.name] = r; });
+      var serR = [['ช่วงนี้', COL.on]]; if (P.prev) serR.push(['ช่วงก่อนหน้า', COL.prev]);
+      g = vgroups(x, y, w, h, RC.map(function (r) { return { label: r.name, sub: nf(r.n) + ' รายการ', vals: P.prev ? [r.on, pm[r.name] ? pm[r.name].on : NaN] : [r.on] }; }), serR, true);
+      sub = [g.note, P.prev ? '' : 'ไม่มีช่วงก่อนหน้า'].filter(Boolean).join(' · ');
+    } else if (id === 'reg_mix') {
+      g = stack100(x, y, w, h, regData(P.cur).map(function (r) { return { label: r.name, sub: nf(r.n) + ' รายการ', s: r }; }));
+      sub = g.note;
+    } else if (id === 'reg_fine') {
+      var RF = regData(P.cur), RFP = P.prev ? regData(P.prev) : [], fm = {}; RFP.forEach(function (r) { fm[r.name] = r; });
+      g = stackAbs(x, y, w, h, RF.map(function (r) { return { label: r.name, sub: (r.c.lt + r.c.wp + r.c.ab) + ' รายการผิด', parts: [r.f.lt, r.f.wp, r.f.ab], total: r.fine, prevTotal: P.prev ? (fm[r.name] ? fm[r.name].fine : 0) : NaN }; }),
+        [['สาย', COL.late], ['ไม่ตรงจุด', COL.off], ['ไม่ Check in', COL.nock]], function (v) { return nf(v); });
+      var tC = stats(P.cur).fine, tP = P.prev ? stats(P.prev).fine : NaN;
+      sub = 'รวม ' + nf(tC) + ' บาท' + (P.prev ? ' · เส้นประ = ช่วงก่อนหน้า (' + nf(tP) + ' บาท)' : ' · ไม่มีช่วงก่อนหน้า');
+    } else {
+      g = hbars(X + 24, y + 4, PW - 48, h - 8, dcWorst10(P).map(function (s) { return { name: s.name, n: s.n, v: s.on, tag: regionOf(s.name) }; }), COL.on, true);
+      sub = ['DC ≥ ' + nf(mr) + ' รายการ', g.note].filter(Boolean).join(' · ');
+    }
   } else if (id === 'grade') {
     if (!cfg().gradeOn) g = { s: noData(X, Y + 30, PW, PH - 30, 'ปิดการแสดงเกรดอยู่ (เปิดได้ที่หน้า ⚙️ ตั้งค่า)') };
     else {
@@ -341,7 +406,7 @@ function infographic(logo) {
     s += '</g>';
   });
   var top = cy + chh + 20, pw = (W - 56 - 20) / 2, ph = (H - top - 52 - 20) / 2, xs = [28, 28 + pw + 20], ys = [top, top + ph + 20];
-  cfg().charts.forEach(function (id, i) { s += chart(id, xs[i % 2], ys[i >> 1], pw, ph, P); });
+  (dayMode() ? cfg().chartsDay : cfg().charts).forEach(function (id, i) { s += chart(id, xs[i % 2], ys[i >> 1], pw, ph, P); });
   s += R(0, H - 40, W, 40, '#0a2a5e') + T(28, H - 14, 'สูตร: % = รายการสถานะนั้น ÷ รายการทั้งหมด × 100 (1 รายการ = รถ 1 คัน/วัน) · ผลต่างของ % เป็นจุด · ' + (P.rule || 'ช่วงก่อนหน้า = วันทำการ (จ.–ส.) เท่ากันก่อนหน้า') + (cfg().gradeOn ? ' · เกรดจาก % ตรงเวลา' : '') + ' · ' + otherFilters(), { fs: 13.5, c: '#cfdcf2' }) + T(W - 28, H - 14, 'NIMEX Fleet Hub', { fs: 15, fw: 600, c: '#f0d57a', a: 'end' });
   return wrapSvg(W, H, s);
 }
@@ -392,7 +457,7 @@ function fname() { var P = period(); return 'NIMEX-CheckinDaily-' + (P.d0 || 'no
 function download(blob, name) { var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
 function say(m) { var x = $('cis-msg'); if (x) x.textContent = m; }
 function hasData() { if (!getFilteredData().length) { say('ไม่มีข้อมูลในช่วงที่เลือก'); return false; } return true; }
-function doInfo() { if (!hasData()) return; say('กำลังสร้างอินโฟกราฟิก…'); return waitFonts().then(logoData).then(function (lg) { return toPng(infographic(lg), 1920, 1080, 2); }).then(function (b) { download(b, fname() + '-infographic-16x9.png'); say('✓ ดาวน์โหลดอินโฟกราฟิก 16:9 แล้ว (3840×2160)'); }).catch(function (e) { say('สร้างภาพไม่สำเร็จ: ' + e.message); }); }
+function doInfo() { if (!hasData()) return; say('กำลังสร้างอินโฟกราฟิก…'); return ensureZmap().then(waitFonts).then(logoData).then(function (lg) { return toPng(infographic(lg), 1920, 1080, 2); }).then(function (b) { download(b, fname() + '-infographic-16x9.png'); say('✓ ดาวน์โหลดอินโฟกราฟิก 16:9 แล้ว (3840×2160)'); }).catch(function (e) { say('สร้างภาพไม่สำเร็จ: ' + e.message); }); }
 function doPng() { if (!hasData()) return; if (!sections(period()).length) return say('กรุณาเลือกหัวข้ออย่างน้อย 1 หัวข้อ'); say('กำลังสร้างรูป…'); return waitFonts().then(logoData).then(function (lg) { var L = longSvg(lg); return toPng(L.svg, L.W, L.H, 2); }).then(function (b) { download(b, fname() + '.png'); say('✓ ดาวน์โหลดรูป PNG แล้ว'); }).catch(function (e) { say('สร้างรูปไม่สำเร็จ: ' + e.message); }); }
 function doXlsx() {
   if (!hasData()) return; var P = period(), secs = sections(P); if (!secs.length) return say('กรุณาเลือกหัวข้ออย่างน้อย 1 หัวข้อ');
@@ -409,7 +474,7 @@ function doXlsx() {
 }
 function doPptx() {
   if (!hasData()) return; var P = period(), secs = sections(P); say('กำลังสร้าง PowerPoint…');
-  return Promise.all([loadLib('pptx'), waitFonts().then(logoData)]).then(function (x) {
+  return Promise.all([loadLib('pptx'), ensureZmap().then(waitFonts).then(logoData)]).then(function (x) {
     return toPng(infographic(x[1]), 1920, 1080, 1).then(function (b) { return new Promise(function (res) { var f = new FileReader(); f.onload = function () { res(f.result); }; f.readAsDataURL(b); }); });
   }).then(function (img) {
     var pp = new PptxGenJS(); pp.layout = 'LAYOUT_WIDE';
@@ -435,13 +500,14 @@ function render() {
     '<p class="cis-note">🗓️ ' + E(P.curLabel) + ' · 📍 ' + E(scopeText()) + '<br>↔️ ' + (P.prevLabel ? 'เทียบ ' + E(P.prevLabel) : 'ไม่มีช่วงก่อนหน้า (ไม่มีข้อมูลในช่วงวันทำการก่อนหน้า หรือเลือก "ทุกเดือน")') +
     '<br>⚙️ ' + E(otherFilters()) + '<br>ใช้ช่วงที่เลือกบนแถบด้านบน (วัน / สัปดาห์ / เดือน / กำหนดเอง) — เปลี่ยนแล้วเปิดหน้าต่างนี้ใหม่</p>' +
     '<button type="button" class="cis-info" data-act="info">🖼️ อินโฟกราฟิก 16:9</button>' +
-    '<p class="cis-note">กราฟ 4 ช่อง: ' + c.charts.map(function (id, i) { return (i + 1) + ') ' + E(CBY[id]); }).join(' · ') + ' · เกรด ' + (c.gradeOn ? 'เปิด' : 'ปิด') + '</p>' +
+    '<p class="cis-note">กราฟ 4 ช่อง' + (dayMode() ? ' (โหมดวัน)' : '') + ': ' + (dayMode() ? c.chartsDay : c.charts).map(function (id, i) { return (i + 1) + ') ' + E(CBY[id]); }).join(' · ') + ' · เกรด ' + (c.gradeOn ? 'เปิด' : 'ปิด') + (dayMode() && !hasRegions() ? ' · ⚠️ ยังโหลดภาคของ DC ไม่ได้' : '') + '</p>' +
     '<div class="cis-h">เลือกหัวข้อสำหรับ Excel / PowerPoint / PNG / ข้อความ</div><div class="cis-checks">' + SECS.map(function (s) { return '<label><input type="checkbox" data-sec="' + s[0] + '"' + (picked[s[0]] ? ' checked' : '') + '> ' + E(s[1]) + '</label>'; }).join('') + '</div>' +
     '<div class="cis-btns"><button type="button" data-act="xlsx">Excel</button><button type="button" data-act="pptx">PowerPoint</button><button type="button" data-act="png">รูป PNG ยาว</button></div>' +
     '<label class="cis-h" for="cis-text">ข้อความสรุป (คัดลอกไปวาง LINE / อีเมล)</label><textarea id="cis-text" rows="9">' + E(summaryText()) + '</textarea>' +
     '<div class="cis-btns"><button type="button" class="alt" data-act="copy">คัดลอกข้อความ</button><button type="button" class="alt" data-act="settings">⚙️ ตั้งค่าเกรด / กราฟ</button></div><p class="cis-msg" id="cis-msg" role="status"></p>';
 }
-function open() { if (!adm()) return; $('cis').hidden = false; render(); }
+function dayMode() { return !!(window.cidPeriod && cidPeriod.get().mode === 'day'); }
+function open() { if (!adm()) return; $('cis').hidden = false; render(); ensureZmap().then(function () { if (!$('cis').hidden) render(); }); }
 function close() { $('cis').hidden = true; }
 
 /* ---------- ส่วนตั้งค่าในหน้า ⚙️ ตั้งค่า ---------- */
@@ -454,6 +520,9 @@ function settingsHtml() {
     '<div class="cid-row" style="font-weight:600">กราฟ 4 ช่องในอินโฟกราฟิก</div><div class="cid-charts">' + [0, 1, 2, 3].map(function (i) {
       return '<label>ช่อง ' + (i + 1) + (i === 0 ? ' (บนซ้าย)' : i === 1 ? ' (บนขวา)' : i === 2 ? ' (ล่างซ้าย)' : ' (ล่างขวา)') + '<select id="cid-ch' + i + '" class="config-input">' + CHARTS.map(function (o) { return '<option value="' + o[0] + '"' + (c.charts[i] === o[0] ? ' selected' : '') + '>' + E(o[1]) + (o[0] === 'grade' ? ' (ต้องเปิดเกรด)' : '') + '</option>'; }).join('') + '</select></label>';
     }).join('') + '</div>' +
+    '<div class="cid-row" style="font-weight:600;margin-top:14px">กราฟ 4 ช่อง เมื่อเลือก "วัน" (รายภาค)</div><div class="cid-charts">' + [0, 1, 2, 3].map(function (i) {
+      return '<label>ช่อง ' + (i + 1) + '<select id="cid-chd' + i + '" class="config-input">' + CHARTS.map(function (o) { return '<option value="' + o[0] + '"' + (c.chartsDay[i] === o[0] ? ' selected' : '') + '>' + E(o[1]) + (o[0] === 'grade' ? ' (ต้องเปิดเกรด)' : '') + '</option>'; }).join('') + '</select></label>';
+    }).join('') + '</div>' +
     '<div style="display:flex;gap:10px;align-items:center;margin-top:12px"><button type="button" class="settings-btn settings-btn-primary" id="cid-share-save">💾 บันทึกค่าตั้ง</button><span id="cid-share-msg" role="status" style="font-size:12px;color:var(--text2)"></span></div>';
 }
 function saveSettings() {
@@ -462,10 +531,12 @@ function saveSettings() {
   if (!(g.A >= g.B && g.B >= g.C && g.C >= g.D) || ['A','B','C','D'].some(function (k) { return !(g[k] >= 0 && g[k] <= 100); })) return sy('เกณฑ์ต้องเรียง A ≥ B ≥ C ≥ D และอยู่ระหว่าง 0–100');
   var mr = Math.round(+$('cid-min').value); if (!(mr >= 1 && mr <= 100000)) return sy('จำนวนรายการขั้นต่ำต้องอยู่ระหว่าง 1–100,000');
   var on = $('cid-grade-on').checked, ch = [0, 1, 2, 3].map(function (i) { return $('cid-ch' + i).value; });
-  if (new Set(ch).size < 4) return sy('เลือกกราฟไม่ซ้ำกันทั้ง 4 ช่อง');
-  if (!on && ch.indexOf('grade') >= 0) return sy('กราฟ "สัดส่วนเกรด DC" ต้องเปิดการแสดงเกรดก่อน');
+  var chd = [0, 1, 2, 3].map(function (i) { return $('cid-chd' + i).value; });
+  if (new Set(ch).size < 4 || new Set(chd).size < 4) return sy('เลือกกราฟไม่ซ้ำกันทั้ง 4 ช่อง (ทั้งชุดปกติและชุดโหมดวัน)');
+  if (!on && (ch.indexOf('grade') >= 0 || chd.indexOf('grade') >= 0)) return sy('กราฟ "สัดส่วนเกรด DC" ต้องเปิดการแสดงเกรดก่อน');
   sy('กำลังบันทึก…');
-  CID.saveShare({ gradeOn: on, grade: g, minRows: mr, charts: ch }).then(function () { sy('✓ บันทึกแล้ว' + (CID.online ? ' ทุกคนเห็นค่าตั้งเดียวกัน' : '')); })
+  var prevS = (window.CID && CID.getShare()) || {};
+  CID.saveShare(Object.assign({}, prevS, { gradeOn: on, grade: g, minRows: mr, charts: ch, chartsDay: chd })).then(function () { sy('✓ บันทึกแล้ว' + (CID.online ? ' ทุกคนเห็นค่าตั้งเดียวกัน' : '')); })
     .catch(function (e) { sy('บันทึกไม่สำเร็จ: ' + (e.message === 'denied' ? 'รหัสไม่ถูกต้อง' : e.message)); });
 }
 function refresh() { var b = $('cid-share-set'); if (b) b.innerHTML = settingsHtml(); }
