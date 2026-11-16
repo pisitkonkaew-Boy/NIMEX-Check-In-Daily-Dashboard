@@ -71,6 +71,11 @@ function group(rows, key) { var m = new Map(); rows.forEach(function (r) { var k
 function datesOf(rows) { return Array.from(new Set(rows.map(function (r) { return r.dateISO; }))).sort(); }
 
 function period() {
+  if (window.cidCompare) {   /* ใช้ช่วงและกติกาเทียบเดียวกับแถบ วัน/สัปดาห์/เดือน (period.js) */
+    var c = cidCompare(), cu = getFilteredData();
+    if (c.empty || !cu.length) return { cur: [], prev: null, curLabel: 'ไม่มีข้อมูล', prevLabel: '', N: 0 };
+    return { cur: cu, prev: c.prev && c.prev.length ? c.prev : null, N: c.N, d0: c.from, d1: c.to, p0: c.pfrom, p1: c.pto, curLabel: c.label, prevLabel: c.prevLabel, rule: c.rule };
+  }
   var cur = getFilteredData(), ds = datesOf(cur);
   if (!ds.length) return { cur: [], prev: null, curLabel: 'ไม่มีข้อมูล', prevLabel: '', N: 0 };
   var d0 = ds[0], d1 = ds[ds.length - 1], N = 0, t;
@@ -86,7 +91,8 @@ function period() {
 function scopeText() { var n = new Set(getFilteredData().map(function (r) { return r.dc; })).size; return 'ทุก DC (' + nf(n) + ' DC)'; }
 function otherFilters() {
   var t = [];
-  try { if (S.execFilterMonth) { var m = S.execFilterMonth.split('-'); t.push('เดือน ' + ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'][+m[1]] + ' ' + (+m[0] + 543)); } if (S.execFilterTo) t.push('ถึง ' + fmtTH(S.execFilterTo)); } catch (e) {}
+  var pm = window.cidPeriod ? cidPeriod.get().mode : 'custom';
+  try { if (pm === 'custom' && S.execFilterMonth) { var m = S.execFilterMonth.split('-'); t.push('เดือน ' + ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'][+m[1]] + ' ' + (+m[0] + 543)); } if (pm === 'custom' && S.execFilterTo) t.push('ถึง ' + fmtTH(S.execFilterTo)); } catch (e) {}
   t.push('ไม่รวมวันอาทิตย์'); t.push('ค่าปรับหลัง Waive');
   return t.join(' · ');
 }
@@ -336,7 +342,7 @@ function infographic(logo) {
   });
   var top = cy + chh + 20, pw = (W - 56 - 20) / 2, ph = (H - top - 52 - 20) / 2, xs = [28, 28 + pw + 20], ys = [top, top + ph + 20];
   cfg().charts.forEach(function (id, i) { s += chart(id, xs[i % 2], ys[i >> 1], pw, ph, P); });
-  s += R(0, H - 40, W, 40, '#0a2a5e') + T(28, H - 14, 'สูตร: % = รายการสถานะนั้น ÷ รายการทั้งหมด × 100 (1 รายการ = รถ 1 คัน/วัน) · ผลต่างของ % เป็นจุด · ช่วงก่อนหน้า = วันทำการ (จ.–ส.) เท่ากันก่อนหน้า' + (cfg().gradeOn ? ' · เกรดจาก % ตรงเวลา' : '') + ' · ' + otherFilters(), { fs: 13.5, c: '#cfdcf2' }) + T(W - 28, H - 14, 'NIMEX Fleet Hub', { fs: 15, fw: 600, c: '#f0d57a', a: 'end' });
+  s += R(0, H - 40, W, 40, '#0a2a5e') + T(28, H - 14, 'สูตร: % = รายการสถานะนั้น ÷ รายการทั้งหมด × 100 (1 รายการ = รถ 1 คัน/วัน) · ผลต่างของ % เป็นจุด · ' + (P.rule || 'ช่วงก่อนหน้า = วันทำการ (จ.–ส.) เท่ากันก่อนหน้า') + (cfg().gradeOn ? ' · เกรดจาก % ตรงเวลา' : '') + ' · ' + otherFilters(), { fs: 13.5, c: '#cfdcf2' }) + T(W - 28, H - 14, 'NIMEX Fleet Hub', { fs: 15, fw: 600, c: '#f0d57a', a: 'end' });
   return wrapSvg(W, H, s);
 }
 
@@ -427,7 +433,7 @@ function render() {
   var P = period(), c = cfg();
   $('cis-body').innerHTML =
     '<p class="cis-note">🗓️ ' + E(P.curLabel) + ' · 📍 ' + E(scopeText()) + '<br>↔️ ' + (P.prevLabel ? 'เทียบ ' + E(P.prevLabel) : 'ไม่มีช่วงก่อนหน้า (ไม่มีข้อมูลในช่วงวันทำการก่อนหน้า หรือเลือก "ทุกเดือน")') +
-    '<br>⚙️ ' + E(otherFilters()) + '<br>ใช้ตัวกรองบนหน้า "เสนอผู้บริหาร" — เปลี่ยนเดือน/วันที่แล้วเปิดหน้าต่างนี้ใหม่</p>' +
+    '<br>⚙️ ' + E(otherFilters()) + '<br>ใช้ช่วงที่เลือกบนแถบด้านบน (วัน / สัปดาห์ / เดือน / กำหนดเอง) — เปลี่ยนแล้วเปิดหน้าต่างนี้ใหม่</p>' +
     '<button type="button" class="cis-info" data-act="info">🖼️ อินโฟกราฟิก 16:9</button>' +
     '<p class="cis-note">กราฟ 4 ช่อง: ' + c.charts.map(function (id, i) { return (i + 1) + ') ' + E(CBY[id]); }).join(' · ') + ' · เกรด ' + (c.gradeOn ? 'เปิด' : 'ปิด') + '</p>' +
     '<div class="cis-h">เลือกหัวข้อสำหรับ Excel / PowerPoint / PNG / ข้อความ</div><div class="cis-checks">' + SECS.map(function (s) { return '<label><input type="checkbox" data-sec="' + s[0] + '"' + (picked[s[0]] ? ' checked' : '') + '> ' + E(s[1]) + '</label>'; }).join('') + '</div>' +
