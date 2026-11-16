@@ -2429,11 +2429,13 @@ function exportExcel(){
   setTimeout(()=>{
     const wb=XLSX.utils.book_new();
     const h1=['DC','ประเภทรถ','ชนิดรถ','รหัสรถ','ทะเบียนรถ','วันที่','กำหนดเวลาเริ่มงาน','เวลา Check-in','ผลต่าง (นาที)','ระยะห่าง (กม.)','สถานะ','ค่าปรับ (บาท)','บิลส่งได้','ดรอปรวม','ดรอปส่งได้','บิลส่งไม่ได้'];
-    const d1=visibleResults().map(r=>[r.dc,r.vehicleType,r.vehicleKind,r.code,r.plate,r.dateTH,r.configStart,r.checkinTime,r.diffMin!==null?r.diffMin:'',r.distanceKm!==null&&r.distanceKm!==undefined?r.distanceKm:'',r.status,r.fine||0,r.billDelivered,r.dropTotal,r.dropDelivered,r.billFailed]);
+    const XD=(typeof getFilteredData==='function'?getFilteredData():visibleResults());
+    if(!XD.length){hideLoading();alert('ไม่มีข้อมูลในช่วงที่เลือก');return;}
+    const d1=XD.map(r=>[r.dc,r.vehicleType,r.vehicleKind,r.code,r.plate,r.dateTH,r.configStart,r.checkinTime,r.diffMin!==null?r.diffMin:'',r.distanceKm!==null&&r.distanceKm!==undefined?r.distanceKm:'',r.status,r.fine||0,r.billDelivered,r.dropTotal,r.dropDelivered,r.billFailed]);
     const ws1=XLSX.utils.aoa_to_sheet([h1,...d1]);
     ws1['!cols']=[22,20,16,14,12,12,16,12,12,12,16,12,12,10,10,12].map(w=>({wch:w}));
     XLSX.utils.book_append_sheet(wb,ws1,'รายบุคคล');
-    const map=buildDCMap(visibleResults());
+    const map=buildDCMap(XD);
     const h2=['DC','กำหนดเวลาเริ่มงาน','รถทั้งหมด','ตรงเวลา','สาย','ไม่ตรงจุด','ไม่ Check in','% ตรงเวลา','ค่าปรับรวม (บาท)','บิลส่งได้','% ส่งสำเร็จ'];
     const d2=Object.values(map).sort((a,b)=>a.dc.localeCompare(b.dc)).map(m=>[m.dc,m.cs,m.tot,m.on,m.lt,m.wp,m.ab,m.tot?+(m.on/m.tot*100).toFixed(1):0,m.fine,m.bd,m.bt?+(m.bd/m.bt*100).toFixed(1):0]);
     const ws2=XLSX.utils.aoa_to_sheet([h2,...d2]);
@@ -3601,7 +3603,7 @@ document.addEventListener('DOMContentLoaded', function(){
 })();
 
 </script>
-<script src="config.js?v=8"></script>
+<script src="config.js?v=9"></script>
 <script src="boot.js?v=8"></script>
 <script src="share.js?v=8"></script>
 <script src="period.js?v=7"></script>
