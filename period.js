@@ -107,13 +107,14 @@ function delta(cur, prev, kind, dir, has) {
   if (z) return '<span class="pd" style="color:' + NEU + '">● เท่าเดิม</span>';
   var col = !dir ? NEU : (d > 0) === (dir > 0) ? GOOD : BAD, ar = d > 0 ? '▲' : '▼', a = Math.abs(d), txt;
   if (kind === 'pp') txt = a.toFixed(1) + ' จุด';
-  else if (kind === 'baht') txt = Math.round(a).toLocaleString() + ' บาท' + (prev ? ' (' + (d > 0 ? '+' : '−') + Math.abs(d / prev * 100).toFixed(0) + '%)' : '');
+  else if (kind === 'baht' || kind === 'bahtS') txt = Math.round(a).toLocaleString() + (kind === 'baht' ? ' บาท' : '') + (prev ? '</span> <span class="pd-t">(' + (d > 0 ? '+' : '−') + Math.abs(d / prev * 100).toFixed(0) + '%)' : '');
   else txt = Math.round(a).toLocaleString() + (prev ? ' (' + (d > 0 ? '+' : '−') + Math.abs(d / prev * 100).toFixed(0) + '%)' : '');
-  return '<span class="pd" style="color:' + col + '" title="เทียบช่วงก่อนหน้า: ' + (kind === 'pp' ? prev.toFixed(1) + '%' : Math.round(prev).toLocaleString()) + '">' + ar + ' ' + txt + '</span>';
+  return '<span class="pd" style="color:' + col + '" title="เทียบช่วงก่อนหน้า: ' + (kind === 'pp' ? prev.toFixed(1) + '%' : Math.round(prev).toLocaleString()) + '"><span class="pd-t">' + ar + '\u00a0' + txt.replace(' จุด', '\u00a0จุด') + '</span></span>';
 }
 function put(afterId, html) {
   var el = $(afterId); if (!el) return;
   var id = afterId + '-pd', x = $(id);
+  if (!html || html.indexOf('pd-na') >= 0) { if (x) x.remove(); return; }   /* ไม่มีช่วงก่อนหน้า: บอกครั้งเดียวที่แถบช่วงข้อมูล */
   if (!x) { x = document.createElement('div'); x.id = id; x.className = 'pd-line'; el.after(x); }
   x.innerHTML = html;
 }
@@ -133,9 +134,9 @@ function execDeltas() {
   put('sub-wp-pct', delta(A.wpP, B.wpP, 'pp', -1, h));
   put('sub-ab-pct', delta(A.abP, B.abP, 'pp', -1, h));
   put('hero-fine', delta(A.fine, B.fine, 'baht', -1, h));
-  put('fine-lt-val', delta(A.fl, B.fl, 'baht', -1, h));
-  put('fine-wp-val', delta(A.fw, B.fw, 'baht', -1, h));
-  put('fine-ab-val', delta(A.fa, B.fa, 'baht', -1, h));
+  put('fine-lt-val', delta(A.fl, B.fl, 'bahtS', -1, h));
+  put('fine-wp-val', delta(A.fw, B.fw, 'bahtS', -1, h));
+  put('fine-ab-val', delta(A.fa, B.fa, 'bahtS', -1, h));
   var lab = $('exec-daterange-label');
   if (lab) { var x = lab.querySelector('.pd-cmp'); if (!x) { x = document.createElement('span'); x.className = 'pd-cmp'; lab.appendChild(x); } x.textContent = '↔ ' + (h ? 'เทียบ ' + c.prevLabel : 'ไม่มีข้อมูลช่วงก่อนหน้า'); lab.title = c.rule || ''; }
   pill(c);
@@ -162,7 +163,7 @@ function teamDeltas() {
       var td = tr.querySelector('td[data-m="' + k[0] + '"]'); if (!td) return;
       var old = td.querySelector('.pd-cell'); if (old) old.remove();
       var s = document.createElement('div'); s.className = 'pd-cell';
-      s.innerHTML = h ? delta(A[k[1]], B[k[1]], k[2], k[3], true).replace(/ \([+−]\d+%\)/, '') : '';
+      s.innerHTML = h ? delta(A[k[1]], B[k[1]], k[2], k[3], true).replace(/<\/span> <span class="pd-t">\([+−]\d+%\)/, '').replace(/ \([+−]\d+%\)/, '') : '';
       td.appendChild(s);
     });
   };

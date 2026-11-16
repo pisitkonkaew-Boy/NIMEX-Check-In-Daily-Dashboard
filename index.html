@@ -460,8 +460,22 @@ body:not(.nx-admin) .data-badge{pointer-events:none}
 .td-waive.is-waived s{color:var(--text3)}
 .td-table tbody tr:nth-child(even) td{background:rgba(10,42,94,.03)}
 @media (max-width:640px){.modal-box.modal-wide{min-width:0;width:96vw;padding:16px}}
-.pd-line{font-size:11px;font-weight:600;margin-top:3px;line-height:1.3}
-.pd{white-space:nowrap}.pd-na{color:var(--text3);font-weight:500}
+.pd-line{font-size:11px;font-weight:600;margin-top:3px;line-height:1.25;min-height:14px}
+.pd{white-space:nowrap}
+.exec-sub-stat .pd-line{font-size:10.5px}
+.pd{white-space:normal}.pd-t{white-space:nowrap;display:inline-block}
+.exec-merged-substats-grid>*{min-width:0}
+/* การ์ดย่อยสูงเท่ากัน: เนื้อหาเรียงจากบน "คลิกดูรายละเอียด" ชิดล่างแนวเดียวกันทุกใบ */
+.exec-sub-stat{display:flex;flex-direction:column;align-items:center}
+.exec-sub-stat-hint{margin-top:auto!important;padding-top:4px}
+/* ▲▼ บนการ์ดพื้นกรมท่า: ใช้สีอ่อนให้อ่านง่าย (ดี = ฟ้าอ่อน แย่ = ชมพูแดง) */
+#hero-total-pd,#hero-fine-pd{font-size:12.5px}
+#hero-total-pd .pd[style*="#1d57b8"],#hero-fine-pd .pd[style*="#1d57b8"]{color:#9cc0ff!important}
+#hero-total-pd .pd[style*="#b8334a"],#hero-fine-pd .pd[style*="#b8334a"]{color:#ff9aac!important}
+#hero-total-pd .pd[style*="#6b7a93"],#hero-fine-pd .pd[style*="#6b7a93"]{color:#cfdcf2!important}
+/* หัวการ์ดย่อยจองความสูง 2 บรรทัด ตัวเลขทุกใบจึงอยู่ระดับเดียวกัน */
+.exec-sub-stat-label{min-height:2.7em;display:flex;align-items:center;justify-content:center;line-height:1.3;text-align:center}
+@media (max-width:1500px){.exec-sub-stat-label{letter-spacing:0!important}}.pd-na{color:var(--text3);font-weight:500}
 .pd-cell{font-size:10px;font-weight:600;line-height:1.2;margin-top:1px}.pd-cell:empty{display:none}
 .pd-note{font-size:11px;color:var(--text2);margin-left:10px}
 #pd-bar{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;min-width:0}
@@ -3587,9 +3601,9 @@ document.addEventListener('DOMContentLoaded', function(){
 })();
 
 </script>
-<script src="config.js?v=7"></script>
-<script src="boot.js?v=7"></script>
-<script src="share.js?v=7"></script>
-<script src="period.js?v=4"></script>
+<script src="config.js?v=8"></script>
+<script src="boot.js?v=8"></script>
+<script src="share.js?v=8"></script>
+<script src="period.js?v=7"></script>
 </body>
 </html>
